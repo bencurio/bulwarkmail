@@ -317,6 +317,36 @@ export function ContactsSidebar({
           </div>
         )}
 
+        {/* Shared accounts with address books */}
+        {sharedBookGroups.map((group) => (
+          <div key={group.accountId} className="mt-2">
+            <button
+              onClick={() => toggleSection(`shared-${group.accountId}`)}
+              className="flex items-center gap-1 px-3 py-1 w-full text-left group"
+            >
+              {collapsed[`shared-${group.accountId}`] ? (
+                <ChevronRight className="w-3 h-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              )}
+              <Share2 className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
+                {t("address_books.shared_prefix", { name: group.accountName })}
+              </span>
+            </button>
+            {!collapsed[`shared-${group.accountId}`] && group.books.map((book) => (
+              <AddressBookItem
+                key={book.id}
+                book={book}
+                isActive={typeof activeCategory === "object" && "addressBookId" in activeCategory && activeCategory.addressBookId === book.id}
+                contactCount={contactCountByBook[book.id] || 0}
+                onSelect={() => onSelectCategory({ addressBookId: book.id })}
+                onDropContacts={onDropContacts}
+              />
+            ))}
+          </div>
+        ))}
+
         {/* Categories section (from contact keywords) */}
         <div className="mt-2">
           <button
@@ -368,36 +398,6 @@ export function ContactsSidebar({
             </>
           )}
         </div>
-
-        {/* Shared accounts with address books */}
-        {sharedBookGroups.map((group) => (
-          <div key={group.accountId} className="mt-2">
-            <button
-              onClick={() => toggleSection(`shared-${group.accountId}`)}
-              className="flex items-center gap-1 px-3 py-1 w-full text-left group"
-            >
-              {collapsed[`shared-${group.accountId}`] ? (
-                <ChevronRight className="w-3 h-3 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              )}
-              <Share2 className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
-                {t("address_books.shared_prefix", { name: group.accountName })}
-              </span>
-            </button>
-            {!collapsed[`shared-${group.accountId}`] && group.books.map((book) => (
-              <AddressBookItem
-                key={book.id}
-                book={book}
-                isActive={typeof activeCategory === "object" && "addressBookId" in activeCategory && activeCategory.addressBookId === book.id}
-                contactCount={contactCountByBook[book.id] || 0}
-                onSelect={() => onSelectCategory({ addressBookId: book.id })}
-                onDropContacts={onDropContacts}
-              />
-            ))}
-          </div>
-        ))}
       </div>
 
       {/* Group context menu */}
