@@ -469,7 +469,7 @@ export default function ContactsPage() {
   const renderRightPanel = () => {
     switch (view) {
       case "create":
-        return <ContactForm addressBooks={addressBooks} allKeywords={allKeywords} onSave={handleSaveNew} onCancel={handleCancel} />;
+        return <ContactForm addressBooks={addressBooks} allKeywords={allKeywords} defaultAddressBookId={typeof activeCategory === "object" && "addressBookId" in activeCategory ? activeCategory.addressBookId : undefined} onSave={handleSaveNew} onCancel={handleCancel} />;
 
       case "edit":
         if (!selectedContact) return null;
