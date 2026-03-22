@@ -209,11 +209,18 @@ export const useContactStore = create<ContactStore>()(
           const created = await client.createContact(contact, accountId);
           // Preserve shared account metadata
           if (contact.isShared && contact.accountId) {
-            created.accountId = contact.accountId;
+            const serverAccountId = contact.accountId;
+            created.accountId = serverAccountId;
             created.accountName = contact.accountName;
             created.isShared = true;
-            created.id = `${contact.accountId}:${created.id}`;
-            created.originalId = created.id.includes(':') ? created.id.split(':').slice(1).join(':') : created.id;
+            created.originalId = created.id;
+            created.id = `${serverAccountId}:${created.id}`;
+            // Namespace addressBookIds to match how getAllContacts stores them
+            if (created.addressBookIds) {
+              created.addressBookIds = Object.fromEntries(
+                Object.entries(created.addressBookIds).map(([bookId, v]) => [`${serverAccountId}:${bookId}`, v])
+              );
+            }
           }
           set((state) => ({
             contacts: [...state.contacts, created],
