@@ -1678,7 +1678,13 @@
       "email_invalid": "Voer een geldig e-mailadres in",
       "email_error_inline": "Ongeldig e-mailformaat",
       "save_failed": "Kon contact niet opslaan",
-      "delete": "Verwijderen"
+      "delete": "Verwijderen",
+      "photo_upload": "Foto uploaden",
+      "photo_change": "Foto wijzigen",
+      "photo_remove": "Foto verwijderen",
+      "photo_invalid_type": "Selecteer een afbeeldingsbestand",
+      "photo_too_large": "De afbeelding moet kleiner zijn dan 5 MB",
+      "photo_upload_failed": "Foto uploaden mislukt"
     },
     "groups": {
       "create": "Nieuwe groep",

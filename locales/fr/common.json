@@ -1678,7 +1678,13 @@
       "email_invalid": "Veuillez saisir une adresse e-mail valide",
       "email_error_inline": "Format d'e-mail invalide",
       "save_failed": "Échec de l'enregistrement du contact",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "photo_upload": "Télécharger une photo",
+      "photo_change": "Changer la photo",
+      "photo_remove": "Supprimer la photo",
+      "photo_invalid_type": "Veuillez sélectionner un fichier image",
+      "photo_too_large": "L'image doit faire moins de 5 Mo",
+      "photo_upload_failed": "Échec du téléchargement de la photo"
     },
     "groups": {
       "create": "Nouveau groupe",

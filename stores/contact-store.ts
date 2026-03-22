@@ -34,6 +34,7 @@ export function getContactPhotoUri(contact: ContactCard): string | undefined {
   return undefined;
 }
 
+
 interface ContactStore {
   contacts: ContactCard[];
   addressBooks: AddressBook[];

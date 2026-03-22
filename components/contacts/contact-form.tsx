@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { X, Plus, ChevronDown, ChevronRight, User, Building, MapPin, Globe, Cake, Heart, Tag, StickyNote, Mail, Phone, Calendar, UserCircle, Book } from "lucide-react";
+import { X, Plus, ChevronDown, ChevronRight, User, Building, MapPin, Globe, Cake, Heart, Tag, StickyNote, Mail, Phone, Calendar, UserCircle, Book, Camera, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { ContactCard, ContactOnlineService, ContactAnniversary, ContactPersonalInfo, AddressBook, AnniversaryDate, PartialDate, ContactAddress } from "@/lib/jmap/types";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface EmailEntry {
   address: string;
@@ -153,6 +154,7 @@ function buildAddressBookData(
 
 export function ContactForm({ contact, addressBooks, allKeywords, defaultAddressBookId, onSave, onCancel }: ContactFormProps) {
   const t = useTranslations("contacts.form");
+  const { client } = useAuthStore();
   const isEditing = !!contact;
 
   const findComponent = (kind: string) => contact?.name?.components?.find(c => c.kind === kind)?.value || "";
@@ -326,6 +328,59 @@ export function ContactForm({ contact, addressBooks, allKeywords, defaultAddress
   const [schedulingUri, setSchedulingUri] = useState(contact?.schedulingUri || "");
   const [freeBusyUri, setFreeBusyUri] = useState(contact?.freeBusyUri || "");
 
+  // Photo state: preview URL (for display), pending File (to upload on save), removal flag
+  const existingPhotoEntry = useMemo(() => {
+    if (!contact?.media) return null;
+    for (const [key, m] of Object.entries(contact.media)) {
+      if (m.kind === 'photo') return { key, media: m };
+    }
+    return null;
+  }, [contact]);
+
+  const existingPhotoUrl = useMemo(() => {
+    if (!existingPhotoEntry) return null;
+    const { media: m } = existingPhotoEntry;
+    if (m.uri) return m.uri;
+    if (m.blobId && client) {
+      try { return client.getBlobDownloadUrl(m.blobId, 'photo', m.mediaType || 'image/jpeg'); } catch { return null; }
+    }
+    return null;
+  }, [existingPhotoEntry, client]);
+
+  const [photoPreview, setPhotoPreview] = useState<string | null>(existingPhotoUrl);
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPhotoUploadError(t("photo_invalid_type"));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoUploadError(t("photo_too_large"));
+      return;
+    }
+    setPhotoUploadError(null);
+    setRemovePhoto(false);
+    setPendingPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    // Reset input so the same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoPreview(null);
+    setPendingPhotoFile(null);
+    setRemovePhoto(true);
+    setPhotoUploadError(null);
+  };
+
   // Address book selection
   const currentBookId = useMemo(() => {
     if (contact?.addressBookIds) {
@@ -486,6 +541,17 @@ export function ContactForm({ contact, addressBooks, allKeywords, defaultAddress
       ...buildAddressBookData(selectedBookId, addressBooks),
     };
 
+    // Handle photo upload / removal
+    // Stalwart does not support blobId in media — send the image as a data URI directly.
+    if (pendingPhotoFile && photoPreview) {
+      data.media = { p0: { kind: 'photo', uri: photoPreview, mediaType: pendingPhotoFile.type } };
+    } else if (removePhoto) {
+      // Explicitly clear media (remove all photos) — null is serialized in JSON, undefined is not
+      data.media = null;
+    } else if (existingPhotoEntry) {
+      // Keep existing photo untouched — don't include media in the patch
+    }
+
     setIsSaving(true);
     try {
       await onSave(data);
@@ -540,6 +606,55 @@ export function ContactForm({ contact, addressBooks, allKeywords, defaultAddress
           {/* Name & Identity — full width */}
           <div className="md:col-span-2 xl:col-span-3">
           <FormSection icon={User} title={t("section_identity")} category="contact">
+            {/* Photo upload */}
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative group flex-shrink-0">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-muted flex items-center justify-center border border-border">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-7 h-7 text-muted-foreground" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  title={t("photo_upload")}
+                >
+                  <Camera className="w-5 h-5 text-white" />
+                </button>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted transition-colors text-left"
+                >
+                  {photoPreview ? t("photo_change") : t("photo_upload")}
+                </button>
+                {photoPreview && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-xs px-3 py-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors text-left flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {t("photo_remove")}
+                  </button>
+                )}
+                {photoUploadError && (
+                  <p className="text-xs text-destructive">{photoUploadError}</p>
+                )}
+              </div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+            </div>
             <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2">
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">{t("prefix")}</label>
