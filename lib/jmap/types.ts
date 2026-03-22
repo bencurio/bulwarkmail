@@ -360,6 +360,7 @@ export interface AddressBook {
   sortOrder?: number;
   isDefault?: boolean;
   isSubscribed?: boolean;
+  shareWith?: Record<string, AddressBookRights> | null;
   myRights?: AddressBookRights;
   accountId?: string;
   accountName?: string;
