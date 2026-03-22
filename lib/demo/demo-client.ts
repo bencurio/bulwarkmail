@@ -515,6 +515,10 @@ export class DemoJMAPClient implements IJMAPClient {
 
   async getCalendars(): Promise<Calendar[]> { return [...this.data.calendars]; }
   async getAllCalendars(): Promise<Calendar[]> { return [...this.data.calendars]; }
+  async getUnsubscribedSharedCalendars(): Promise<Calendar[]> { return []; }
+
+  async resolvePrincipals(_ids: string[]): Promise<Record<string, { name: string; email: string | null }>> { return {}; }
+  async lookupAccountIdByIdentifier(_identifier: string): Promise<string | null> { return null; }
 
   async createCalendar(calendar: Partial<Calendar>): Promise<Calendar> {
     const full: Calendar = {

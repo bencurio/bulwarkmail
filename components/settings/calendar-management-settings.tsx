@@ -6,8 +6,11 @@ import { useCalendarStore } from '@/stores/calendar-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from '@/stores/toast-store';
 import { SettingsSection } from './settings-section';
-import { Plus, Pencil, Trash2, Check, X, Calendar as CalendarIcon, Copy, Link, Upload, Globe, RefreshCw, Eraser } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Calendar as CalendarIcon, Copy, Link, Upload, Globe, RefreshCw, Eraser, Users, UserPlus, ChevronDown, Share2, LogOut, RotateCcw } from 'lucide-react';
+import type { Calendar } from '@/lib/jmap/types';
 import { cn, formatDateTime } from '@/lib/utils';
+import { CalendarRights } from '@/lib/jmap/types';
+import { IJMAPClient } from '@/lib/jmap/client-interface';
 import { ICalImportModal } from '@/components/calendar/ical-import-modal';
 import { ICalSubscriptionModal } from '@/components/calendar/ical-subscription-modal';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -77,6 +80,178 @@ function CalendarColorPicker({
           )}
         </label>
       )}
+    </div>
+  );
+}
+
+type SharePermission = 'read_only' | 'can_edit';
+
+const SHARE_PERMISSION_RIGHTS: Record<SharePermission, CalendarRights> = {
+  read_only: {
+    mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: false,
+    mayWriteOwn: false, mayUpdatePrivate: false, mayRSVP: true,
+    mayDelete: false,
+  },
+  can_edit: {
+    mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: true,
+    mayWriteOwn: true, mayUpdatePrivate: true, mayRSVP: true,
+    mayDelete: false,
+  },
+};
+
+function inferPermission(rights: CalendarRights): SharePermission {
+  if (rights.mayWriteAll) return 'can_edit';
+  return 'read_only';
+}
+
+function CalendarSharePanel({
+  calendarId,
+  shareWith,
+  onUpdate,
+  client,
+}: {
+  calendarId: string;
+  shareWith: Record<string, CalendarRights> | null;
+  onUpdate: (calendarId: string, shareWith: Record<string, CalendarRights>) => Promise<void>;
+  client: IJMAPClient;
+}) {
+  const t = useTranslations('calendar.management');
+  const [newIdentifier, setNewIdentifier] = useState('');
+  const [newPermission, setNewPermission] = useState<SharePermission>('can_edit');
+  const [isAdding, setIsAdding] = useState(false);
+  const [loadingPrincipal, setLoadingPrincipal] = useState<string | null>(null);
+  const [principalNames, setPrincipalNames] = useState<Record<string, { name: string; email: string | null }>>({});
+
+  const shares = shareWith || {};
+
+  useEffect(() => {
+    const ids = Object.keys(shares);
+    if (ids.length === 0) return;
+    client.resolvePrincipals(ids).then(setPrincipalNames);
+  }, [shareWith]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAdd = async () => {
+    const identifier = newIdentifier.trim();
+    if (!identifier) return;
+    setIsAdding(true);
+    try {
+      const resolvedId = await client.lookupAccountIdByIdentifier(identifier);
+      const accountId = resolvedId ?? identifier;
+      const updated = { ...shares, [accountId]: SHARE_PERMISSION_RIGHTS[newPermission] };
+      await onUpdate(calendarId, updated);
+      setNewIdentifier('');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleRemove = async (principal: string) => {
+    setLoadingPrincipal(principal);
+    try {
+      const updated = { ...shares };
+      delete updated[principal];
+      await onUpdate(calendarId, updated);
+    } finally {
+      setLoadingPrincipal(null);
+    }
+  };
+
+  const handleChangePermission = async (principal: string, permission: SharePermission) => {
+    setLoadingPrincipal(principal);
+    try {
+      const updated = { ...shares, [principal]: SHARE_PERMISSION_RIGHTS[permission] };
+      await onUpdate(calendarId, updated);
+    } finally {
+      setLoadingPrincipal(null);
+    }
+  };
+
+  return (
+    <div className="mt-2 p-3 rounded-md border border-border bg-muted/30 space-y-3">
+      {/* Current shares */}
+      {Object.keys(shares).length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t('share_no_shares')}</p>
+      ) : (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">{t('share_with_label')}</p>
+          {Object.entries(shares).map(([principal, rights]) => {
+            const perm = inferPermission(rights);
+            const isLoading = loadingPrincipal === principal;
+            const resolved = principalNames[principal];
+            const displayName = resolved?.name || principal;
+            const displayEmail = resolved?.email;
+            return (
+              <div key={principal} className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm block truncate">{displayName}</span>
+                  {displayEmail && displayEmail !== displayName && (
+                    <span className="text-xs text-muted-foreground block truncate">{displayEmail}</span>
+                  )}
+                </div>
+                <div className="relative">
+                  <select
+                    value={perm}
+                    onChange={(e) => handleChangePermission(principal, e.target.value as SharePermission)}
+                    disabled={isLoading}
+                    className="text-xs py-1 pl-2 pr-6 rounded border border-border bg-background text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                  >
+                    <option value="read_only">{t('share_read_only')}</option>
+                    <option value="can_edit">{t('share_can_edit')}</option>
+                  </select>
+                  <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(principal)}
+                  disabled={isLoading}
+                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                  title={t('share_remove')}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add new share */}
+      <div className="flex items-center gap-2 pt-1 border-t border-border">
+        <UserPlus className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+        <input
+          type="text"
+          value={newIdentifier}
+          onChange={(e) => setNewIdentifier(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleAdd();
+            if (e.key === 'Escape') setNewIdentifier('');
+          }}
+          placeholder={t('share_email_placeholder')}
+          className="flex-1 min-w-0 px-2 py-1 text-xs rounded border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          disabled={isAdding}
+        />
+        <div className="relative">
+          <select
+            value={newPermission}
+            onChange={(e) => setNewPermission(e.target.value as SharePermission)}
+            disabled={isAdding}
+            className="text-xs py-1 pl-2 pr-6 rounded border border-border bg-background text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          >
+            <option value="read_only">{t('share_read_only')}</option>
+            <option value="can_edit">{t('share_can_edit')}</option>
+            <option value="full_access">{t('share_full_access')}</option>
+          </select>
+          <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+        </div>
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={isAdding || !newIdentifier.trim()}
+          className="px-2.5 py-1 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+        >
+          {t('share_add')}
+        </button>
+      </div>
     </div>
   );
 }
@@ -151,7 +326,7 @@ export { CalendarColorPicker, CALENDAR_COLORS };
 export function CalendarManagementSettings() {
   const t = useTranslations('calendar.management');
   const { client, serverUrl, username } = useAuthStore();
-  const { calendars, updateCalendar, createCalendar, removeCalendar, clearCalendarEvents, fetchCalendars, icalSubscriptions, removeICalSubscription, refreshICalSubscription, isSubscriptionCalendar } = useCalendarStore();
+  const { calendars, updateCalendar, createCalendar, removeCalendar, dropCalendar, clearCalendarEvents, fetchCalendars, icalSubscriptions, removeICalSubscription, refreshICalSubscription, isSubscriptionCalendar } = useCalendarStore();
 
   const [discoveredCalDavUrls, setDiscoveredCalDavUrls] = useState<Record<string, string | null>>({});
   const [wellKnownCalDavUrl, setWellKnownCalDavUrl] = useState<string | null>(null);
@@ -166,6 +341,12 @@ export function CalendarManagementSettings() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [deletingSubId, setDeletingSubId] = useState<string | null>(null);
   const [refreshingSubId, setRefreshingSubId] = useState<string | null>(null);
+  const [sharingCalendarId, setSharingCalendarId] = useState<string | null>(null);
+  const [unsubscribingId, setUnsubscribingId] = useState<string | null>(null);
+  const [showUnsubscribed, setShowUnsubscribed] = useState(false);
+  const [unsubscribedCalendars, setUnsubscribedCalendars] = useState<Calendar[]>([]);
+  const [loadingUnsubscribed, setLoadingUnsubscribed] = useState(false);
+  const [resubscribingId, setResubscribingId] = useState<string | null>(null);
   const tImport = useTranslations('calendar.import');
   const tSub = useTranslations('calendar.subscription');
   const timeFormat = useSettingsStore((s) => s.timeFormat);
@@ -202,7 +383,12 @@ export function CalendarManagementSettings() {
 
     fetch('/api/caldav/discover', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': client.getAuthHeader(),
+        'X-JMAP-Server-URL': serverUrl,
+        'X-JMAP-Username': username,
+      },
       body: JSON.stringify({
         accounts: Array.from(accounts.entries()).map(([key, candidates]) => ({ key, candidates })),
       }),
@@ -336,6 +522,72 @@ export function CalendarManagementSettings() {
     }
   };
 
+  const handleUnsubscribe = async (calendarId: string) => {
+    if (!client) return;
+    setIsLoading(true);
+    try {
+      const cal = calendars.find(c => c.id === calendarId);
+      if (!cal) return;
+      // Per RFC 9670 (JMAP Sharing), isSubscribed is a per-user property that a
+      // sharee can set without needing mayAdmin. Send to the owner's accountId.
+      const realId = cal.originalId || calendarId;
+      const ownerAccountId = cal.accountId;
+      await client.updateCalendar(realId, { isSubscribed: false }, ownerAccountId);
+      dropCalendar(calendarId);
+      setUnsubscribingId(null);
+      toast.success(t('unsubscribed'));
+    } catch {
+      toast.error(t('error_unsubscribe'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoadUnsubscribed = async () => {
+    if (!client) return;
+    setLoadingUnsubscribed(true);
+    try {
+      const cals = await client.getUnsubscribedSharedCalendars();
+      setUnsubscribedCalendars(cals);
+    } finally {
+      setLoadingUnsubscribed(false);
+    }
+  };
+
+  const handleToggleUnsubscribed = () => {
+    const next = !showUnsubscribed;
+    setShowUnsubscribed(next);
+    if (next && unsubscribedCalendars.length === 0) handleLoadUnsubscribed();
+  };
+
+  const handleResubscribe = async (cal: Calendar) => {
+    if (!client) return;
+    setResubscribingId(cal.id);
+    try {
+      const realId = cal.originalId || cal.id;
+      const ownerAccountId = cal.accountId;
+      await client.updateCalendar(realId, { isSubscribed: true }, ownerAccountId);
+      setUnsubscribedCalendars(prev => prev.filter(c => c.id !== cal.id));
+      await fetchCalendars(client);
+      toast.success(t('resubscribed'));
+    } catch {
+      toast.error(t('error_resubscribe'));
+    } finally {
+      setResubscribingId(null);
+    }
+  };
+
+  const handleShareUpdate = async (calendarId: string, shareWith: Record<string, CalendarRights>) => {
+    if (!client) return;
+    try {
+      await updateCalendar(client, calendarId, { shareWith });
+      toast.success(t('share_updated'));
+    } catch {
+      toast.error(t('share_error'));
+      throw new Error('Failed to update sharing');
+    }
+  };
+
   const handleClear = async (calendarId: string) => {
     if (!client) return;
     setIsLoading(true);
@@ -442,12 +694,41 @@ export function CalendarManagementSettings() {
             );
           }
 
+          const isSharing = sharingCalendarId === cal.id;
+          const canShare = !cal.isShared && cal.myRights?.mayAdmin !== false;
+
+          // Unsubscribe confirm state for shared calendars
+          if (cal.isShared && unsubscribingId === cal.id) {
+            return (
+              <div key={cal.id} className="flex items-center gap-3 py-2.5 px-3 bg-destructive/5 rounded-md border border-destructive/20">
+                <LogOut className="w-4 h-4 text-destructive flex-shrink-0" />
+                <p className="text-sm text-foreground flex-1">
+                  {t('confirm_unsubscribe', { name: cal.name })}
+                </p>
+                <button
+                  onClick={() => handleUnsubscribe(cal.id)}
+                  disabled={isLoading}
+                  className="px-3 py-1 text-xs font-medium bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 disabled:opacity-50"
+                >
+                  {t('unsubscribe')}
+                </button>
+                <button
+                  onClick={() => setUnsubscribingId(null)}
+                  className="px-3 py-1 text-xs bg-muted text-foreground rounded-md hover:bg-accent"
+                >
+                  {t('cancel')}
+                </button>
+              </div>
+            );
+          }
+
           return (
-            <div
-              key={cal.id}
-              className="flex items-center gap-3 py-2.5 px-3 rounded-md border border-border bg-background group"
-            >
-              {/* Color swatch - clickable to change color */}
+            <div key={cal.id} className={cn(
+              "rounded-md border bg-background",
+              cal.isShared ? "border-blue-500/30 bg-blue-500/5" : "border-border"
+            )}>
+            <div className="flex items-center gap-3 py-2.5 px-3 group">
+              {/* Color swatch */}
               <div className="relative">
                 <button
                   type="button"
@@ -456,8 +737,6 @@ export function CalendarManagementSettings() {
                   style={{ backgroundColor: color }}
                   title={t('change_color')}
                 />
-
-                {/* Inline color picker popover */}
                 {colorPickerId === cal.id && (
                   <div
                     ref={colorPickerRef}
@@ -472,11 +751,19 @@ export function CalendarManagementSettings() {
                 )}
               </div>
 
-              <CalendarIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              {cal.isShared
+                ? <Share2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                : <CalendarIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              }
 
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium truncate block">{cal.name}</span>
-                {(() => {
+                {cal.isShared && cal.accountName && (
+                  <span className="text-xs text-blue-500/80 truncate block">
+                    {t('shared_by', { name: cal.accountName })}
+                  </span>
+                )}
+                {!cal.isShared && (() => {
                   const caldavUrl = buildCalDavUrl(cal.id);
                   if (!caldavUrl) return null;
                   return (
@@ -487,10 +774,7 @@ export function CalendarManagementSettings() {
                       </span>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyUrl(caldavUrl);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleCopyUrl(caldavUrl); }}
                         className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                         title={t('copy_url')}
                       >
@@ -508,33 +792,90 @@ export function CalendarManagementSettings() {
               )}
 
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={() => setEditingId(cal.id)}
-                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  title={t('edit')}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setClearingId(cal.id)}
-                  className="p-1.5 rounded-md hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
-                  title={t('clear_events')}
-                >
-                  <Eraser className="w-3.5 h-3.5" />
-                </button>
-                {!cal.isDefault && (
-                  <button
-                    type="button"
-                    onClick={() => setDeletingId(cal.id)}
-                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    title={t('delete')}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                {cal.isShared ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(cal.id)}
+                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      title={t('edit')}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClearingId(cal.id)}
+                      className="p-1.5 rounded-md hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                      title={t('clear_events')}
+                    >
+                      <Eraser className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUnsubscribingId(cal.id)}
+                      className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      title={t('unsubscribe')}
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {canShare && (
+                      <button
+                        type="button"
+                        onClick={() => setSharingCalendarId(isSharing ? null : cal.id)}
+                        className={cn(
+                          "p-1.5 rounded-md transition-colors",
+                          isSharing
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        title={t('share')}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(cal.id)}
+                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      title={t('edit')}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClearingId(cal.id)}
+                      className="p-1.5 rounded-md hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                      title={t('clear_events')}
+                    >
+                      <Eraser className="w-3.5 h-3.5" />
+                    </button>
+                    {!cal.isDefault && (
+                      <button
+                        type="button"
+                        onClick={() => setDeletingId(cal.id)}
+                        className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title={t('delete')}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
+            </div>
+            {isSharing && canShare && client && (
+              <div className="px-3 pb-3">
+                <CalendarSharePanel
+                  calendarId={cal.id}
+                  shareWith={cal.shareWith}
+                  onUpdate={handleShareUpdate}
+                  client={client}
+                />
+              </div>
+            )}
             </div>
           );
         })}
@@ -652,6 +993,51 @@ export function CalendarManagementSettings() {
           })}
         </div>
       )}
+
+      {/* Unsubscribed shared calendars — collapsed by default */}
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={handleToggleUnsubscribed}
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showUnsubscribed && "rotate-180")} />
+          {t('unsubscribed_section')}
+          {loadingUnsubscribed && <RefreshCw className="w-3 h-3 animate-spin" />}
+        </button>
+
+        {showUnsubscribed && (
+          <div className="mt-2 space-y-1.5">
+            {unsubscribedCalendars.length === 0 && !loadingUnsubscribed && (
+              <p className="text-xs text-muted-foreground px-1">{t('unsubscribed_empty')}</p>
+            )}
+            {unsubscribedCalendars.map((cal) => (
+              <div key={cal.id} className="flex items-center gap-3 py-2 px-3 rounded-md border border-border bg-muted/30">
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: cal.color || '#6b7280' }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{cal.name}</p>
+                  {cal.accountName && (
+                    <p className="text-xs text-muted-foreground truncate">{cal.accountName}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleResubscribe(cal)}
+                  disabled={resubscribingId === cal.id}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
+                  title={t('resubscribe')}
+                >
+                  <RotateCcw className={cn("w-3 h-3", resubscribingId === cal.id && "animate-spin")} />
+                  {t('resubscribe')}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {showImportModal && client && (
         <ICalImportModal

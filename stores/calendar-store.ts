@@ -47,6 +47,7 @@ interface CalendarStore {
   updateCalendar: (client: IJMAPClient, calendarId: string, updates: Partial<Calendar>) => Promise<void>;
   createCalendar: (client: IJMAPClient, calendar: Partial<Calendar>) => Promise<Calendar | null>;
   removeCalendar: (client: IJMAPClient, calendarId: string) => Promise<void>;
+  dropCalendar: (calendarId: string) => void;
   clearCalendarEvents: (client: IJMAPClient, calendarId: string) => Promise<number>;
   setSelectedDate: (date: Date) => void;
   setViewMode: (mode: CalendarViewMode) => void;
@@ -490,6 +491,7 @@ export const useCalendarStore = create<CalendarStore>()(
         try {
           const cal = get().calendars.find(c => c.id === calendarId);
           const realId = cal?.originalId || calendarId;
+
           const targetAccountId = cal?.accountId;
           await client.updateCalendar(realId, updates, targetAccountId);
           set((state) => ({
@@ -518,6 +520,14 @@ export const useCalendarStore = create<CalendarStore>()(
           set({ error: 'Failed to create calendar' });
           return null;
         }
+      },
+
+      dropCalendar: (calendarId) => {
+        set((state) => ({
+          calendars: state.calendars.filter(c => c.id !== calendarId),
+          selectedCalendarIds: state.selectedCalendarIds.filter(id => id !== calendarId),
+          events: state.events.filter(e => !e.calendarIds?.[calendarId]),
+        }));
       },
 
       removeCalendar: async (client, calendarId) => {

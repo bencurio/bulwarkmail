@@ -2750,11 +2750,21 @@ export class JMAPClient implements IJMAPClient {
     try {
       const accountId = this.getCalendarsAccountId();
       const response = await this.request([
-        ["Calendar/get", { accountId }, "0"]
+        ["Calendar/get", { accountId }, "0"],
+        ["Calendar/get", { accountId, properties: ["id", "shareWith"] }, "1"],
       ], this.calendarUsing());
 
       if (response.methodResponses?.[0]?.[0] === "Calendar/get") {
-        return (response.methodResponses[0][1].list || []) as Calendar[];
+        const calendars = (response.methodResponses[0][1].list || []) as Calendar[];
+        const shareList = (response.methodResponses?.[1]?.[1]?.list || []) as Array<{ id: string; shareWith?: Calendar['shareWith'] }>;
+        const shareWithMap: Record<string, Calendar['shareWith']> = {};
+        for (const entry of shareList) {
+          shareWithMap[entry.id] = entry.shareWith ?? null;
+        }
+        return calendars.map((cal) => ({
+          ...cal,
+          shareWith: shareWithMap[cal.id] ?? cal.shareWith ?? null,
+        }));
       }
       return [];
     } catch (error) {
@@ -2775,21 +2785,30 @@ export class JMAPClient implements IJMAPClient {
 
         try {
           const response = await this.request([
-            ["Calendar/get", { accountId }, "0"]
+            ["Calendar/get", { accountId }, "0"],
+            ["Calendar/get", { accountId, properties: ["id", "shareWith"] }, "1"],
           ], this.calendarUsing());
 
-          if (response.methodResponses?.[0]?.[0] === "Calendar/get") {
-            const rawCalendars = (response.methodResponses[0][1].list || []) as Calendar[];
-            const calendars = rawCalendars.map((cal) => ({
+          const rawCalendars = (response.methodResponses?.[0]?.[1]?.list || []) as Calendar[];
+          const shareWithMap: Record<string, Calendar['shareWith']> = {};
+          const shareList = (response.methodResponses?.[1]?.[1]?.list || []) as Array<{ id: string; shareWith?: Calendar['shareWith'] }>;
+          for (const entry of shareList) {
+            shareWithMap[entry.id] = entry.shareWith ?? null;
+          }
+
+          const calendars = rawCalendars
+            // Skip shared calendars the user has explicitly unsubscribed from
+            .filter((cal) => isPrimary || cal.isSubscribed !== false)
+            .map((cal) => ({
               ...cal,
+              shareWith: shareWithMap[cal.id] ?? cal.shareWith ?? null,
               id: isPrimary ? cal.id : `${accountId}:${cal.id}`,
               originalId: cal.id,
               accountId,
               accountName: account?.name || (isPrimary ? this.username : accountId),
               isShared: !isPrimary,
             }));
-            allCalendars.push(...calendars);
-          }
+          allCalendars.push(...calendars);
         } catch (error) {
           console.error(`Failed to fetch calendars for account ${accountId}:`, error);
         }
@@ -2799,6 +2818,43 @@ export class JMAPClient implements IJMAPClient {
     } catch (error) {
       console.error('Failed to fetch all calendars:', error);
       return this.getCalendars();
+    }
+  }
+
+  async getUnsubscribedSharedCalendars(): Promise<Calendar[]> {
+    try {
+      const result: Calendar[] = [];
+      const primaryId = this.getCalendarsAccountId();
+      const accountIds = this.getCalendarCapableAccountIds();
+
+      for (const accountId of accountIds) {
+        if (accountId === primaryId) continue; // only secondary (shared) accounts
+        const account = this.accounts[accountId];
+
+        try {
+          const response = await this.request([
+            ["Calendar/get", { accountId }, "0"],
+          ], this.calendarUsing());
+
+          const rawCalendars = (response.methodResponses?.[0]?.[1]?.list || []) as Calendar[];
+          const unsubscribed = rawCalendars
+            .filter((cal) => cal.isSubscribed === false)
+            .map((cal) => ({
+              ...cal,
+              id: `${accountId}:${cal.id}`,
+              originalId: cal.id,
+              accountId,
+              accountName: account?.name || accountId,
+              isShared: true,
+            }));
+          result.push(...unsubscribed);
+        } catch {
+          // ignore per-account errors
+        }
+      }
+      return result;
+    } catch {
+      return [];
     }
   }
 
@@ -2862,6 +2918,56 @@ export class JMAPClient implements IJMAPClient {
     }
 
     throw new Error("Failed to update calendar");
+  }
+
+  async resolvePrincipals(ids: string[]): Promise<Record<string, { name: string; email: string | null }>> {
+    if (ids.length === 0) return {};
+    try {
+      const accountId = this.getCalendarsAccountId();
+      const response = await this.request([
+        ["Principal/get", { accountId, ids }, "0"]
+      ], ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:principals"]);
+
+      const list: Array<{ id: string; name?: string; email?: string }> =
+        response.methodResponses?.[0]?.[1]?.list || [];
+
+      const result: Record<string, { name: string; email: string | null }> = {};
+      for (const p of list) {
+        result[p.id] = { name: p.name || p.id, email: p.email || null };
+      }
+      return result;
+    } catch {
+      return {};
+    }
+  }
+
+  async lookupAccountIdByIdentifier(identifier: string): Promise<string | null> {
+    try {
+      const accountId = this.getCalendarsAccountId();
+      const queryResponse = await this.request([
+        ["Principal/query", { accountId }, "0"]
+      ], ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:principals"]);
+
+      const ids: string[] = queryResponse.methodResponses?.[0]?.[1]?.ids || [];
+      if (ids.length === 0) return null;
+
+      const getResponse = await this.request([
+        ["Principal/get", { accountId, ids }, "0"]
+      ], ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:principals"]);
+
+      const principals: Array<{ id: string; name?: string; email?: string }> =
+        getResponse.methodResponses?.[0]?.[1]?.list || [];
+
+      const needle = identifier.toLowerCase();
+      const match = principals.find(p =>
+        p.name?.toLowerCase() === needle ||
+        p.email?.toLowerCase() === needle
+      );
+
+      return match?.id ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async deleteCalendar(calendarId: string, targetAccountId?: string): Promise<void> {

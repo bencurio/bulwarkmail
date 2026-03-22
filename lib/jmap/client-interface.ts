@@ -183,6 +183,9 @@ export interface IJMAPClient {
   getCalendarsAccountId(): string;
   getCalendars(): Promise<Calendar[]>;
   getAllCalendars(): Promise<Calendar[]>;
+  getUnsubscribedSharedCalendars(): Promise<Calendar[]>;
+  resolvePrincipals(ids: string[]): Promise<Record<string, { name: string; email: string | null }>>;
+  lookupAccountIdByIdentifier(identifier: string): Promise<string | null>;
   createCalendar(calendar: Partial<Calendar>, targetAccountId?: string): Promise<Calendar>;
   updateCalendar(calendarId: string, updates: Partial<Calendar>, targetAccountId?: string): Promise<void>;
   deleteCalendar(calendarId: string, targetAccountId?: string): Promise<void>;
