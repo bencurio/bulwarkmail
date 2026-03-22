@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useState, type CSSProperties, type DragEvent } from "react";
+import { useCallback, useState, useRef, type CSSProperties, type DragEvent } from "react";
+
+// Module-level flag: suppresses the spurious click event that browsers fire on
+// whichever element is under the cursor when a drag-and-drop ends. Without this,
+// dropping an event on top of another event card triggers that card's onClick,
+// opening the wrong event's edit modal.
+let dragJustEnded = false;
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent, Calendar } from "@/lib/jmap/types";
@@ -67,6 +73,7 @@ function createEventDragPreview(title: string, timeRange: string, color: string)
 export function EventCard({ event, calendar, variant, onClick, onMouseEnter, onMouseLeave, isSelected, draggable: isDraggable, continuesBefore = false, continuesAfter = false, className, style }: EventCardProps) {
   const t = useTranslations("calendar");
   const [isBeingDragged, setIsBeingDragged] = useState(false);
+  const didDragRef = useRef(false);
   const color = getEventColor(event, calendar);
   const startDate = parseISO(event.start);
   const timeFormat = useSettingsStore((state) => state.timeFormat);
@@ -99,6 +106,14 @@ export function EventCard({ event, calendar, variant, onClick, onMouseEnter, onM
 
   const handleDragEnd = useCallback(() => {
     setIsBeingDragged(false);
+    didDragRef.current = true;
+    dragJustEnded = true;
+    // Clear both flags after the current event loop tick so the spurious
+    // click (fired by the browser after dragend) is suppressed.
+    requestAnimationFrame(() => {
+      didDragRef.current = false;
+      dragJustEnded = false;
+    });
   }, []);
 
   const dragProps = isDraggable ? {
@@ -111,7 +126,7 @@ export function EventCard({ event, calendar, variant, onClick, onMouseEnter, onM
   if (variant === "chip") {
     return (
       <button
-        onClick={(e) => { e.stopPropagation(); onClick?.(e.currentTarget.getBoundingClientRect()); }}
+        onClick={(e) => { e.stopPropagation(); if (dragJustEnded || didDragRef.current) return; onClick?.(e.currentTarget.getBoundingClientRect()); }}
         onMouseEnter={(e) => onMouseEnter?.(e.currentTarget.getBoundingClientRect())}
         onMouseLeave={() => onMouseLeave?.()}
         aria-label={ariaLabel}
@@ -138,7 +153,7 @@ export function EventCard({ event, calendar, variant, onClick, onMouseEnter, onM
   if (variant === "span") {
     return (
       <button
-        onClick={(e) => { e.stopPropagation(); onClick?.(e.currentTarget.getBoundingClientRect()); }}
+        onClick={(e) => { e.stopPropagation(); if (dragJustEnded || didDragRef.current) return; onClick?.(e.currentTarget.getBoundingClientRect()); }}
         onMouseEnter={(e) => onMouseEnter?.(e.currentTarget.getBoundingClientRect())}
         onMouseLeave={() => onMouseLeave?.()}
         aria-label={ariaLabel}
@@ -168,7 +183,7 @@ export function EventCard({ event, calendar, variant, onClick, onMouseEnter, onM
 
   return (
     <button
-      onClick={(e) => { e.stopPropagation(); onClick?.(e.currentTarget.getBoundingClientRect()); }}
+      onClick={(e) => { e.stopPropagation(); if (dragJustEnded || didDragRef.current) return; onClick?.(e.currentTarget.getBoundingClientRect()); }}
       onMouseEnter={(e) => onMouseEnter?.(e.currentTarget.getBoundingClientRect())}
       onMouseLeave={() => onMouseLeave?.()}
       aria-label={ariaLabel}

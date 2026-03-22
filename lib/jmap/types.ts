@@ -435,7 +435,7 @@ export interface CalendarRights {
   mayWriteOwn: boolean;
   mayUpdatePrivate: boolean;
   mayRSVP: boolean;
-  mayAdmin: boolean;
+  mayAdmin?: boolean;
   mayDelete: boolean;
 }
 
