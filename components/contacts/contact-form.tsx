@@ -125,6 +125,32 @@ function Select({ value, onChange, children, className }: {
   );
 }
 
+/**
+ * Resolves the (possibly namespaced) selectedBookId to the fields needed by
+ * the JMAP contact create/update call.
+ *
+ * For shared address books the local ID is `"accountId:originalBookId"`.
+ * The server only knows the originalBookId, and the store needs isShared +
+ * accountId to route the request to the correct JMAP account.
+ */
+function buildAddressBookData(
+  selectedBookId: string,
+  addressBooks: AddressBook[] | undefined,
+): Partial<ContactCard> {
+  if (!selectedBookId) return {};
+  const book = addressBooks?.find(b => b.id === selectedBookId);
+  if (book?.isShared && book.accountId && book.originalId) {
+    return {
+      addressBookIds: { [book.originalId]: true },
+      isShared: true,
+      accountId: book.accountId,
+      accountName: book.accountName,
+    };
+  }
+  // Primary account: use the ID as-is (already the server-side ID)
+  return { addressBookIds: { [selectedBookId]: true } };
+}
+
 export function ContactForm({ contact, addressBooks, allKeywords, defaultAddressBookId, onSave, onCancel }: ContactFormProps) {
   const t = useTranslations("contacts.form");
   const isEditing = !!contact;
@@ -457,7 +483,7 @@ export function ContactForm({ contact, addressBooks, allKeywords, defaultAddress
       calendarUri: calendarUri.trim() || undefined,
       schedulingUri: schedulingUri.trim() || undefined,
       freeBusyUri: freeBusyUri.trim() || undefined,
-      ...(selectedBookId ? { addressBookIds: { [selectedBookId]: true } } : {}),
+      ...buildAddressBookData(selectedBookId, addressBooks),
     };
 
     setIsSaving(true);
