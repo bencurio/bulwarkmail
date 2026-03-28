@@ -44,6 +44,7 @@ import { KeywordSettings } from '@/components/settings/keyword-settings';
 import { AccountSecuritySettings } from '@/components/settings/account-security-settings';
 import { FilesSettingsComponent } from '@/components/settings/files-settings';
 import { ContactsSettings } from '@/components/settings/contacts-settings';
+import { AddressBookManagementSettings } from '@/components/settings/addressbook-management-settings';
 import { SmimeSettings } from '@/components/settings/smime-settings';
 import { SidebarAppsSettings } from '@/components/settings/sidebar-apps-settings';
 import { NotificationSettings } from '@/components/settings/notification-settings';
@@ -211,7 +212,7 @@ export default function SettingsPage() {
       {activeTab === 'encryption' && <SmimeSettings />}
       {activeTab === 'vacation' && <VacationSettings />}
       {activeTab === 'calendar' && <><CalendarSettings /><div className="mt-8"><CalendarManagementSettings /></div></>}
-      {activeTab === 'contacts' && <ContactsSettings />}
+      {activeTab === 'contacts' && <><ContactsSettings /><div className="mt-8"><AddressBookManagementSettings /></div></>}
       {activeTab === 'filters' && <FilterSettings />}
       {activeTab === 'templates' && <TemplateSettings />}
       {activeTab === 'folders' && <FolderSettings />}

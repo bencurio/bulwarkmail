@@ -1754,7 +1754,13 @@
       "email_invalid": "Voer een geldig e-mailadres in",
       "email_error_inline": "Ongeldig e-mailformaat",
       "save_failed": "Kon contact niet opslaan",
-      "delete": "Verwijderen"
+      "delete": "Verwijderen",
+      "photo_upload": "Foto uploaden",
+      "photo_change": "Foto wijzigen",
+      "photo_remove": "Foto verwijderen",
+      "photo_invalid_type": "Selecteer een afbeeldingsbestand",
+      "photo_too_large": "De afbeelding moet kleiner zijn dan 5 MB",
+      "photo_upload_failed": "Foto uploaden mislukt"
     },
     "groups": {
       "create": "Nieuwe groep",
@@ -1814,6 +1820,37 @@
       "error_create": "Kon contact niet aanmaken",
       "error_update": "Kon contact niet bijwerken",
       "error_delete": "Kon contact niet verwijderen"
+    },
+    "management": {
+      "title": "Adresboekbeheer",
+      "description": "Maak, hernoem en deel uw adresboeken.",
+      "name": "Naam",
+      "name_placeholder": "bijv. Werkcontacten",
+      "add_addressbook": "Adresboek toevoegen",
+      "create": "Aanmaken",
+      "save": "Opslaan",
+      "cancel": "Annuleren",
+      "edit": "Hernoemen",
+      "delete": "Verwijderen",
+      "share": "Delen",
+      "shared": "Gedeeld",
+      "default": "Standaard",
+      "addressbook_created": "Adresboek aangemaakt",
+      "addressbook_updated": "Adresboek bijgewerkt",
+      "addressbook_deleted": "Adresboek verwijderd",
+      "confirm_delete": "\"{name}\" verwijderen? Alle contacten in dit adresboek worden verwijderd.",
+      "error_create": "Adresboek kon niet worden aangemaakt",
+      "error_update": "Adresboek kon niet worden bijgewerkt",
+      "error_delete": "Adresboek kon niet worden verwijderd",
+      "share_updated": "Deling bijgewerkt",
+      "share_error": "Deling kon niet worden bijgewerkt",
+      "share_no_shares": "Niet gedeeld met anderen",
+      "share_with_label": "Gedeeld met",
+      "share_read_only": "Alleen lezen",
+      "share_can_write": "Kan bewerken",
+      "share_remove": "Toegang verwijderen",
+      "share_email_placeholder": "E-mail of gebruikersnaam",
+      "share_add": "Toevoegen"
     }
   },
   "calendar": {

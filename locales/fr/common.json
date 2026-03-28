@@ -1754,7 +1754,13 @@
       "email_invalid": "Veuillez saisir une adresse e-mail valide",
       "email_error_inline": "Format d'e-mail invalide",
       "save_failed": "Échec de l'enregistrement du contact",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "photo_upload": "Télécharger une photo",
+      "photo_change": "Changer la photo",
+      "photo_remove": "Supprimer la photo",
+      "photo_invalid_type": "Veuillez sélectionner un fichier image",
+      "photo_too_large": "L'image doit faire moins de 5 Mo",
+      "photo_upload_failed": "Échec du téléchargement de la photo"
     },
     "groups": {
       "create": "Nouveau groupe",
@@ -1814,6 +1820,37 @@
       "error_create": "Échec de la création du contact",
       "error_update": "Échec de la mise à jour du contact",
       "error_delete": "Échec de la suppression du contact"
+    },
+    "management": {
+      "title": "Gestion des carnets d'adresses",
+      "description": "Créez, renommez et partagez vos carnets d'adresses.",
+      "name": "Nom",
+      "name_placeholder": "ex. : Contacts professionnels",
+      "add_addressbook": "Ajouter un carnet d'adresses",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "edit": "Renommer",
+      "delete": "Supprimer",
+      "share": "Partager",
+      "shared": "Partagé",
+      "default": "Par défaut",
+      "addressbook_created": "Carnet d'adresses créé",
+      "addressbook_updated": "Carnet d'adresses mis à jour",
+      "addressbook_deleted": "Carnet d'adresses supprimé",
+      "confirm_delete": "Supprimer \"{name}\" ? Tous les contacts de ce carnet seront supprimés.",
+      "error_create": "Impossible de créer le carnet d'adresses",
+      "error_update": "Impossible de mettre à jour le carnet d'adresses",
+      "error_delete": "Impossible de supprimer le carnet d'adresses",
+      "share_updated": "Partage mis à jour",
+      "share_error": "Impossible de mettre à jour le partage",
+      "share_no_shares": "Non partagé avec personne",
+      "share_with_label": "Partagé avec",
+      "share_read_only": "Lecture seule",
+      "share_can_write": "Peut modifier",
+      "share_remove": "Supprimer l'accès",
+      "share_email_placeholder": "E-mail ou nom d'utilisateur",
+      "share_add": "Ajouter"
     }
   },
   "calendar": {

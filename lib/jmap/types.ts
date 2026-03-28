@@ -182,7 +182,7 @@ export interface ContactCard {
   anniversaries?: Record<string, ContactAnniversary>;
   personalInfo?: Record<string, ContactPersonalInfo>;
   notes?: Record<string, ContactNote>;
-  media?: Record<string, ContactMedia>;
+  media?: Record<string, ContactMedia> | null;
   cryptoKeys?: Record<string, ContactCryptoKey>;
   directories?: Record<string, ContactDirectory>;
   links?: Record<string, ContactLink>;
@@ -295,7 +295,8 @@ export interface ContactNote {
 
 export interface ContactMedia {
   kind: 'photo' | 'sound' | 'logo';
-  uri: string;
+  uri?: string;
+  blobId?: string;
   mediaType?: string;
 }
 
@@ -362,6 +363,7 @@ export interface AddressBook {
   sortOrder?: number;
   isDefault?: boolean;
   isSubscribed?: boolean;
+  shareWith?: Record<string, AddressBookRights> | null;
   myRights?: AddressBookRights;
   accountId?: string;
   accountName?: string;

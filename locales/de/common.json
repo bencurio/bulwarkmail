@@ -1754,7 +1754,13 @@
       "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
       "email_error_inline": "Ungültiges E-Mail-Format",
       "save_failed": "Kontakt konnte nicht gespeichert werden",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "photo_upload": "Foto hochladen",
+      "photo_change": "Foto ändern",
+      "photo_remove": "Foto entfernen",
+      "photo_invalid_type": "Bitte wählen Sie eine Bilddatei aus",
+      "photo_too_large": "Das Bild muss kleiner als 5 MB sein",
+      "photo_upload_failed": "Foto konnte nicht hochgeladen werden"
     },
     "groups": {
       "create": "Neue Gruppe",
@@ -1814,6 +1820,37 @@
       "error_create": "Kontakt konnte nicht erstellt werden",
       "error_update": "Kontakt konnte nicht aktualisiert werden",
       "error_delete": "Kontakt konnte nicht gelöscht werden"
+    },
+    "management": {
+      "title": "Adressbuchverwaltung",
+      "description": "Erstellen, umbenennen und freigeben Sie Ihre Adressbücher.",
+      "name": "Name",
+      "name_placeholder": "z.B. Arbeitskontakte",
+      "add_addressbook": "Adressbuch hinzufügen",
+      "create": "Erstellen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Umbenennen",
+      "delete": "Löschen",
+      "share": "Freigeben",
+      "shared": "Geteilt",
+      "default": "Standard",
+      "addressbook_created": "Adressbuch erstellt",
+      "addressbook_updated": "Adressbuch aktualisiert",
+      "addressbook_deleted": "Adressbuch gelöscht",
+      "confirm_delete": "\"{name}\" löschen? Alle Kontakte in diesem Adressbuch werden entfernt.",
+      "error_create": "Adressbuch konnte nicht erstellt werden",
+      "error_update": "Adressbuch konnte nicht aktualisiert werden",
+      "error_delete": "Adressbuch konnte nicht gelöscht werden",
+      "share_updated": "Freigabe aktualisiert",
+      "share_error": "Freigabe konnte nicht aktualisiert werden",
+      "share_no_shares": "Nicht mit anderen geteilt",
+      "share_with_label": "Geteilt mit",
+      "share_read_only": "Nur lesen",
+      "share_can_write": "Bearbeiten",
+      "share_remove": "Zugriff entfernen",
+      "share_email_placeholder": "E-Mail oder Benutzername",
+      "share_add": "Hinzufügen"
     }
   },
   "calendar": {

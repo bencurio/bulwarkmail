@@ -34,6 +34,7 @@ export function getContactPhotoUri(contact: ContactCard): string | undefined {
   return undefined;
 }
 
+
 interface ContactStore {
   contacts: ContactCard[];
   addressBooks: AddressBook[];
@@ -49,6 +50,9 @@ interface ContactStore {
 
   fetchContacts: (client: IJMAPClient) => Promise<void>;
   fetchAddressBooks: (client: IJMAPClient) => Promise<void>;
+  createAddressBook: (client: IJMAPClient, addressBook: Partial<AddressBook>) => Promise<AddressBook | null>;
+  updateAddressBook: (client: IJMAPClient, id: string, updates: Partial<AddressBook>) => Promise<void>;
+  deleteAddressBook: (client: IJMAPClient, id: string) => Promise<void>;
   createContact: (client: IJMAPClient, contact: Partial<ContactCard>) => Promise<void>;
   updateContact: (client: IJMAPClient, id: string, updates: Partial<ContactCard>) => Promise<void>;
   deleteContact: (client: IJMAPClient, id: string) => Promise<void>;
@@ -152,6 +156,53 @@ export const useContactStore = create<ContactStore>()(
         }
       },
 
+      createAddressBook: async (client, addressBook) => {
+        try {
+          const created = await client.createAddressBook(addressBook);
+          set((state) => ({ addressBooks: [...state.addressBooks, created] }));
+          return created;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Failed to create address book';
+          set({ error: msg });
+          throw error;
+        }
+      },
+
+      updateAddressBook: async (client, id, updates) => {
+        try {
+          const book = get().addressBooks.find(b => b.id === id);
+          const originalId = book?.originalId || id;
+          const accountId = book?.isShared ? book.accountId : undefined;
+          await client.updateAddressBook(originalId, updates, accountId);
+          set((state) => ({
+            addressBooks: state.addressBooks.map(b =>
+              b.id === id ? { ...b, ...updates } : b
+            ),
+          }));
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Failed to update address book';
+          set({ error: msg });
+          throw error;
+        }
+      },
+
+      deleteAddressBook: async (client, id) => {
+        try {
+          const book = get().addressBooks.find(b => b.id === id);
+          const originalId = book?.originalId || id;
+          const accountId = book?.isShared ? book.accountId : undefined;
+          await client.deleteAddressBook(originalId, accountId);
+          set((state) => ({
+            addressBooks: state.addressBooks.filter(b => b.id !== id),
+            contacts: state.contacts.filter(c => !c.addressBookIds || !c.addressBookIds[id]),
+          }));
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Failed to delete address book';
+          set({ error: msg });
+          throw error;
+        }
+      },
+
       createContact: async (client, contact) => {
         set({ isLoading: true, error: null });
         try {
@@ -159,11 +210,18 @@ export const useContactStore = create<ContactStore>()(
           const created = await client.createContact(contact, accountId);
           // Preserve shared account metadata
           if (contact.isShared && contact.accountId) {
-            created.accountId = contact.accountId;
+            const serverAccountId = contact.accountId;
+            created.accountId = serverAccountId;
             created.accountName = contact.accountName;
             created.isShared = true;
-            created.id = `${contact.accountId}:${created.id}`;
-            created.originalId = created.id.includes(':') ? created.id.split(':').slice(1).join(':') : created.id;
+            created.originalId = created.id;
+            created.id = `${serverAccountId}:${created.id}`;
+            // Namespace addressBookIds to match how getAllContacts stores them
+            if (created.addressBookIds) {
+              created.addressBookIds = Object.fromEntries(
+                Object.entries(created.addressBookIds).map(([bookId, v]) => [`${serverAccountId}:${bookId}`, v])
+              );
+            }
           }
           set((state) => ({
             contacts: [...state.contacts, created],

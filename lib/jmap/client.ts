@@ -2624,6 +2624,108 @@ export class JMAPClient implements IJMAPClient {
     }
   }
 
+  async createAddressBook(addressBook: Partial<AddressBook>, targetAccountId?: string): Promise<AddressBook> {
+    const accountId = targetAccountId || this.getContactsAccountId();
+    const response = await this.request([
+      ["AddressBook/set", {
+        accountId,
+        create: { "new-addressbook": addressBook },
+      }, "0"]
+    ], this.contactUsing());
+
+    const result = response.methodResponses?.[0];
+    if (result?.[0] === "AddressBook/set") {
+      const created = result[1].created?.["new-addressbook"];
+      if (created) return { ...addressBook, ...created } as AddressBook;
+    }
+    throw new Error('Failed to create address book');
+  }
+
+  async updateAddressBook(addressBookId: string, updates: Partial<AddressBook>, targetAccountId?: string): Promise<void> {
+    const accountId = targetAccountId || this.getContactsAccountId();
+    const response = await this.request([
+      ["AddressBook/set", {
+        accountId,
+        update: { [addressBookId]: updates },
+      }, "0"]
+    ], this.contactUsing());
+
+    const result = response.methodResponses?.[0];
+    if (result?.[0] === "AddressBook/set") {
+      const notUpdated = result[1].notUpdated?.[addressBookId];
+      if (notUpdated) throw new Error(notUpdated.description || 'Failed to update address book');
+    }
+  }
+
+  async deleteAddressBook(addressBookId: string, targetAccountId?: string): Promise<void> {
+    const accountId = targetAccountId || this.getContactsAccountId();
+    const response = await this.request([
+      ["AddressBook/set", {
+        accountId,
+        destroy: [addressBookId],
+        onDestroyRemoveContents: true,
+      }, "0"]
+    ], this.contactUsing());
+
+    const result = response.methodResponses?.[0];
+    if (result?.[0] === "AddressBook/set") {
+      const notDestroyed = result[1].notDestroyed?.[addressBookId];
+      if (notDestroyed) throw new Error(notDestroyed.description || 'Failed to delete address book');
+    }
+  }
+
+  async resolvePrincipals(ids: string[]): Promise<Record<string, { name: string; email: string | null }>> {
+    if (ids.length === 0) return {};
+    try {
+      const accountId = this.getPrincipalAccountId();
+      const response = await this.request([
+        ["Principal/get", { accountId, ids }, "0"]
+      ], ["urn:ietf:params:jmap:principals"]);
+
+      const result = response.methodResponses?.[0];
+      if (result?.[0] !== "Principal/get") return {};
+
+      const out: Record<string, { name: string; email: string | null }> = {};
+      for (const principal of (result[1].list || [])) {
+        out[principal.id] = {
+          name: principal.name || principal.id,
+          email: principal.email || null,
+        };
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  }
+
+  async lookupAccountIdByIdentifier(identifier: string): Promise<string | null> {
+    try {
+      const accountId = this.getPrincipalAccountId();
+      const response = await this.request([
+        ["Principal/query", {
+          accountId,
+          filter: { email: identifier },
+        }, "0"]
+      ], ["urn:ietf:params:jmap:principals"]);
+
+      const result = response.methodResponses?.[0];
+      if (result?.[0] !== "Principal/query") return null;
+      const ids: string[] = result[1].ids || [];
+      return ids[0] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private getPrincipalAccountId(): string {
+    // Try to find an account that supports JMAP principals
+    for (const [id, account] of Object.entries(this.accounts)) {
+      const caps = (account as { accountCapabilities?: Record<string, unknown> }).accountCapabilities || {};
+      if ('urn:ietf:params:jmap:principals' in caps) return id;
+    }
+    return this.accountId;
+  }
+
   private async fetchPaginatedContacts(
     accountId: string,
     filter?: Record<string, unknown>,

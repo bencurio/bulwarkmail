@@ -478,6 +478,30 @@ export class DemoJMAPClient implements IJMAPClient {
   async getAddressBooks(): Promise<AddressBook[]> { return [...this.data.addressBooks]; }
   async getAllAddressBooks(): Promise<AddressBook[]> { return [...this.data.addressBooks]; }
 
+  async createAddressBook(addressBook: Partial<AddressBook>): Promise<AddressBook> {
+    const created: AddressBook = { id: `ab-${Date.now()}`, name: addressBook.name || 'New Address Book', ...addressBook };
+    this.data.addressBooks.push(created);
+    return created;
+  }
+
+  async updateAddressBook(addressBookId: string, updates: Partial<AddressBook>): Promise<void> {
+    const idx = this.data.addressBooks.findIndex(b => b.id === addressBookId);
+    if (idx !== -1) this.data.addressBooks[idx] = { ...this.data.addressBooks[idx], ...updates };
+  }
+
+  async deleteAddressBook(addressBookId: string): Promise<void> {
+    this.data.addressBooks = this.data.addressBooks.filter(b => b.id !== addressBookId);
+    this.data.contacts = this.data.contacts.filter(c => !c.addressBookIds[addressBookId]);
+  }
+
+  async resolvePrincipals(ids: string[]): Promise<Record<string, { name: string; email: string | null }>> {
+    return Object.fromEntries(ids.map(id => [id, { name: id, email: null }]));
+  }
+
+  async lookupAccountIdByIdentifier(_identifier: string): Promise<string | null> {
+    return null;
+  }
+
   async getContacts(addressBookId?: string): Promise<ContactCard[]> {
     if (addressBookId) return this.data.contacts.filter(c => c.addressBookIds[addressBookId]);
     return [...this.data.contacts];

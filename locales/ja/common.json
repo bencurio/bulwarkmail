@@ -1754,7 +1754,13 @@
       "email_invalid": "有効なメールアドレスを入力してください",
       "email_error_inline": "メールアドレスの形式が正しくありません",
       "save_failed": "連絡先の保存に失敗しました",
-      "delete": "削除"
+      "delete": "削除",
+      "photo_upload": "写真をアップロード",
+      "photo_change": "写真を変更",
+      "photo_remove": "写真を削除",
+      "photo_invalid_type": "画像ファイルを選択してください",
+      "photo_too_large": "画像は5MB未満にしてください",
+      "photo_upload_failed": "写真のアップロードに失敗しました"
     },
     "groups": {
       "create": "新しいグループ",
@@ -1814,6 +1820,37 @@
       "error_create": "連絡先の作成に失敗しました",
       "error_update": "連絡先の更新に失敗しました",
       "error_delete": "連絡先の削除に失敗しました"
+    },
+    "management": {
+      "title": "アドレス帳の管理",
+      "description": "アドレス帳を作成、名前変更、共有できます。",
+      "name": "名前",
+      "name_placeholder": "例：仕事の連絡先",
+      "add_addressbook": "アドレス帳を追加",
+      "create": "作成",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "edit": "名前変更",
+      "delete": "削除",
+      "share": "共有",
+      "shared": "共有済み",
+      "default": "デフォルト",
+      "addressbook_created": "アドレス帳を作成しました",
+      "addressbook_updated": "アドレス帳を更新しました",
+      "addressbook_deleted": "アドレス帳を削除しました",
+      "confirm_delete": "「{name}」を削除しますか？このアドレス帳内のすべての連絡先が削除されます。",
+      "error_create": "アドレス帳の作成に失敗しました",
+      "error_update": "アドレス帳の更新に失敗しました",
+      "error_delete": "アドレス帳の削除に失敗しました",
+      "share_updated": "共有設定を更新しました",
+      "share_error": "共有設定の更新に失敗しました",
+      "share_no_shares": "誰とも共有していません",
+      "share_with_label": "共有相手",
+      "share_read_only": "読み取り専用",
+      "share_can_write": "編集可",
+      "share_remove": "アクセスを削除",
+      "share_email_placeholder": "メールまたはユーザー名",
+      "share_add": "追加"
     }
   },
   "calendar": {
